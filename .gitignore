@@ -1,0 +1,27 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# 環境変数・秘密情報
+.env
+
+# ログ・生成ファイル
+log/
+
+# OS/エディタ固有
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Jupyter/Notebook
+*.ipynb_checkpoints
+
+# その他
+*.log
