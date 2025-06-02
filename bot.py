@@ -110,5 +110,26 @@ async def generate_image_command(ctx, *, prompt: str):
         else:
             await ctx.send(result)
 
+@bot.command(name="img3")
+async def generate_image_imagen3_command(ctx, *, prompt: str):
+    """
+    !img3 <プロンプト> でGemini Imagen 3 APIを呼び出し、画像を生成して送信する
+    """
+    async with ctx.typing():
+        result = await gemini.generate_image_imagen3(prompt)
+        if "画像ファイル:" in result:
+            text, img_path = result.split("画像ファイル:", 1)
+            text = text.strip()
+            img_path = img_path.strip()
+            import os
+            if os.path.exists(img_path):
+                if text:
+                    await ctx.send(text)
+                await ctx.send(file=discord.File(img_path))
+            else:
+                await ctx.send(f"画像ファイルの保存に失敗しました: {img_path}")
+        else:
+            await ctx.send(result)
+
 def run():
     bot.run(DISCORD_TOKEN)

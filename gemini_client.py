@@ -85,6 +85,33 @@ class GeminiMCPClient:
             return f"{text_result}\n画像ファイル: {image_result_path}"
         return text_result or "画像生成に失敗しました。"
 
+    async def generate_image_imagen3(self, prompt: str) -> str:
+        """
+        Gemini Imagen 3 APIを使い、テキストから高品質な画像生成を行う。
+        画像生成結果はファイルとして保存し、パスを返す。
+        """
+        import asyncio
+        from google.genai import types
+        response = await self.client.aio.models.generate_content(
+            model="imagen-3-preview",
+            contents=[prompt],
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"]
+            )
+        )
+        text_result = None
+        image_result_path = None
+        for part in response.candidates[0].content.parts:
+            if hasattr(part, "text") and part.text is not None:
+                text_result = part.text
+            elif hasattr(part, "inline_data") and part.inline_data is not None:
+                image = Image.open(BytesIO(part.inline_data.data))
+                image_result_path = f"log/gemini_generated_img3_{asyncio.get_event_loop().time()}.png"
+                image.save(image_result_path)
+        if image_result_path:
+            return f"{text_result}\n画像ファイル: {image_result_path}"
+        return text_result or "画像生成に失敗しました。"
+
 # 例: bot.py から呼び出す場合
 # gemini = GeminiMCPClient()
 # reply = await gemini.ask("ロンドンの今日の天気を教えて")
