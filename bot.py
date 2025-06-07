@@ -13,7 +13,11 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-gemini = GeminiMCPClient(api_key=os.getenv('GEMINI_API_KEY'), mcp_server_path=os.getenv('MCP_SERVER_PATH'))
+gemini = GeminiMCPClient(
+    api_key=os.getenv('GEMINI_API_KEY'), 
+    discord_mcp_path=os.getenv('DISCORD_MCP_PATH'),
+    search_mcp_path=os.getenv('SEARCH_MCP_PATH')
+)
 
 # Google Drive共有リンクのファイルIDを指定
 GOOGLE_DRIVE_FILE_ID = os.getenv("SAWAI_PROFILE_DRIVE_ID")  # 例: '1a2b3c4d5e6f...'
@@ -94,42 +98,50 @@ async def generate_image_command(ctx, *, prompt: str):
     !img <プロンプト> でGemini画像生成APIを呼び出し、画像を生成して送信する
     """
     async with ctx.typing():
-        result = await gemini.generate_image(prompt)
-        # 結果が「\n画像ファイル: ...」形式なら画像も送信
-        if "画像ファイル:" in result:
-            text, img_path = result.split("画像ファイル:", 1)
-            text = text.strip()
-            img_path = img_path.strip()
-            import os
-            if os.path.exists(img_path):
+        try:
+            text, image = await gemini.generate_image(prompt)
+            if image is not None:
+                from io import BytesIO
+                img_bytes = BytesIO()
+                image.save(img_bytes, format="PNG")
+                img_bytes.seek(0)
                 if text:
                     await ctx.send(text)
-                await ctx.send(file=discord.File(img_path))
+                await ctx.send(file=discord.File(img_bytes, filename="generated.png"))
             else:
-                await ctx.send(f"画像ファイルの保存に失敗しました: {img_path}")
-        else:
-            await ctx.send(result)
+                await ctx.send(text)
+        except Exception as e:
+            await ctx.send(f"画像生成中にエラーが発生しました。再度お試しください。\n{e}")
 
-@bot.command(name="img3")
-async def generate_image_imagen3_command(ctx, *, prompt: str):
+@bot.command(name="imgedit")
+async def image_edit_command(ctx, *, prompt: str = None):
     """
-    !img3 <プロンプト> でGemini Imagen 3 APIを呼び出し、画像を生成して送信する
+    !imgedit <プロンプト> + 画像添付 でGemini画像編集APIを呼び出し、画像変換して送信する
     """
+    if not ctx.message.attachments:
+        await ctx.send("画像ファイルを添付してください。")
+        return
+    attachment = ctx.message.attachments[0]
+    img_bytes = await attachment.read()
+    from PIL import Image
+    from io import BytesIO
+    input_image = Image.open(BytesIO(img_bytes))
+    if not prompt:
+        prompt = "画像を編集してください。"
     async with ctx.typing():
-        result = await gemini.generate_image_imagen3(prompt)
-        if "画像ファイル:" in result:
-            text, img_path = result.split("画像ファイル:", 1)
-            text = text.strip()
-            img_path = img_path.strip()
-            import os
-            if os.path.exists(img_path):
+        try:
+            text, image = await gemini.generate_image(prompt, input_image_path=None, input_image_obj=input_image)
+            if image is not None:
+                img_bytes = BytesIO()
+                image.save(img_bytes, format="PNG")
+                img_bytes.seek(0)
                 if text:
                     await ctx.send(text)
-                await ctx.send(file=discord.File(img_path))
+                await ctx.send(file=discord.File(img_bytes, filename="edited.png"))
             else:
-                await ctx.send(f"画像ファイルの保存に失敗しました: {img_path}")
-        else:
-            await ctx.send(result)
+                await ctx.send(text)
+        except Exception as e:
+            await ctx.send(f"画像生成中にエラーが発生しました。再度お試しください。\n{e}")
 
 def run():
     bot.run(DISCORD_TOKEN)
